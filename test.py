@@ -1,22 +1,23 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import cv2
-from PIL import Image
+from PIL import Image, ImageTk
 from tensorflow.python.keras.models import load_model
-import sys
 import sys
 import PySimpleGUI as sg
 import io
-import os
 
 face_cascade_path = '/Users/makishima/opt/anaconda3/share/opencv4/haarcascades/haarcascade_frontalface_default.xml'
 face_cascade = cv2.CascadeClassifier(face_cascade_path)
 
+emotions = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 path_list = []
 img_list = []
+# face_box = []
+
+model = load_model('face_emotion.h5')
 
 
-def get_img_data(f, face_box, maxsize=(100, 120), first=False):
+def get_img_data(f, face_box, maxsize=(120, 120), first=False):
   """Generate image data using PIL
   """
   # print("open file:", f)
@@ -32,6 +33,19 @@ def get_img_data(f, face_box, maxsize=(100, 120), first=False):
   return ImageTk.PhotoImage(img)
 
 
+def predict(path, face_box):
+  gray = Image.open(path).convert('L').crop(face_box)
+  img_resize = gray.resize((48, 48))
+  img = np.array(img_resize).reshape(1, 48, 48, 1)
+
+  pre = model.predict(img).reshape(7)
+  arg = np.argsort(pre)[::-1]
+  pre_result = []
+  for i in range(3):
+    pre_result.append(str(i + 1) + '.' + str(emotions[arg[i]]) + ': ' + str(pre[arg[i]]))
+  return pre_result
+
+
 def get_face_position(img_path):
   img = cv2.imread(img_path)
   img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -42,6 +56,28 @@ def get_face_position(img_path):
     face_box[i][2] += face_box[i][0]
     face_box[i][3] += face_box[i][1]
   return face_box
+
+
+def show_result(values):
+  index = int(values) - 1
+  result_img = sg.Image(data=get_img_data(path, face_box[index], first=True))
+  pre_result = predict(path, face_box[index])
+
+  result_layout = [[sg.Text('Here are the results.'), sg.Button('OK')],
+                   [result_img],
+                   [sg.Text(pre_result[0])],
+                   [sg.Text(pre_result[1])],
+                   [sg.Text(pre_result[2])]]
+# ウィンドウの生成
+  result_window = sg.Window('Result', result_layout)
+
+# イベントループ
+  while True:
+    event, values = result_window.read()
+    if event == sg.WIN_CLOSED or event == 'OK':
+      break
+
+  result_window.close()
 
 
 for img_path in sys.argv:
@@ -73,25 +109,12 @@ while True:
   event, values = candidate_window.read()
   if event == sg.WIN_CLOSED or event == 'Cancel' or event == 'No':
     break
-  elif event == 'OK' or event == 'Yes':
-    print('What you entered：', values[0])  # emotions[int(values[0])]
-
-candidate_window.close()
-
-
-result_layout = [[sg.Text('ここは1行目')],
-                 [sg.Text('ここは2行目：適当に文字を入力してください'), sg.InputText()],
-                 [sg.Button('OK'), sg.Button('キャンセル')]]
-
-# ウィンドウの生成
-result_window = sg.Window('サンプルプログラム', result_layout)
-
-# イベントループ
-while True:
-  event, values = result_window.read()
-  if event == sg.WIN_CLOSED or event == 'キャンセル':
+  elif event == 'Yes':
+    values[0] = 1
+    show_result(values[0])
     break
   elif event == 'OK':
-    print('あなたが入力した値： ', values[0])  # emotions[int(values[0])]
-
-result_window.close()
+    print('What you entered：', values[0])  # emotions[int(values[0])]
+    show_result(values[0])
+    break
+candidate_window.close()
