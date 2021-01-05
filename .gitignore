@@ -1,7 +1,10 @@
 .DS_Store
+/.vscode
 /.ipynb_checkpoints
 /img
-/challenges-in-representation-learning-facial-expression-recognition-challenge 
+/challenges-in-representation-learning-facial-expression-recognition-challenge
+
 *.jpg
 *.png
 *.swp
+*.h5
